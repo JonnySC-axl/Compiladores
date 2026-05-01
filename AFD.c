@@ -29,6 +29,9 @@ size_t cfinales;
 size_t **tabla;
 size_t *conteo;
 
+#define MAX_ESTADOS_AFD 256
+#define NoHay MAX_ESTADOS_AFD
+
 typedef struct{
     size_t estado;
     char simbolo;
@@ -129,7 +132,7 @@ int edoFinal(size_t estado){
 }
 
 /*
-    Recibe un conjunto deestados de tamaño *n y lo expande agregando lo estados 
+    Recibe un conjunto deestados de tamanio *n y lo expande agregando lo estados 
     alcanzables por transiciones e.
     Usa una pila para ir porcesando cada estado pendiente por cada estado 
     que saca, busca su columna e en la tabla y por cada destino que encentra ahi
@@ -215,22 +218,21 @@ void AFNRecursivo(const char *cadena, size_t largo, size_t pos, size_t estado, P
             printf(" q%zu", camino[0].estado);
             for(size_t i = 1; i < npasos; i++){
                 if(camino[i].simbolo == '\0')
-                    printf(" -- --> q%zu", camino[i].estado);
+                    printf(" -- e --> q%zu", camino[i].estado);
                 else    
                     printf(" -- %c --> q%zu", camino[i].simbolo, camino[i].estado);
             }
 
-            if(npasos < 0){
+            if(npasos > 0){
                 Paso ultimo = camino[npasos - 1];
                 if(ultimo.simbolo == '\0')
                     printf(" -- e --> q%zu \n", estado);
                 else
                     printf("-- %c --> q%zu \n", ultimo.simbolo, estado);
             } else {
-                printf("-- final --> q%zu \n", estado);
+                printf(" --> q%zu \n", estado);
             }
         }
-        return;
     }
 
     char c = cadena[pos];
@@ -247,8 +249,8 @@ void AFNRecursivo(const char *cadena, size_t largo, size_t pos, size_t estado, P
         };
 
         int nuevos_eps[cestados];
-        for(size_t i = 0; i < cestados; i++)
-        eps_visitados[i] = 0;
+        for(size_t j = 0; j < cestados; j++)
+        nuevos_eps[j] = 0;
 
         AFNRecursivo(cadena, largo, pos + 1, destino, camino, npasos + 1, nuevos_eps, encontrado);
     }
@@ -317,6 +319,159 @@ int AFN(void){
     return encontrado;
 }
 
+void mover(size_t *conj, size_t n, size_t sym, size_t *dest, size_t *ndest){
+    *ndest = 0;
+
+    for(size_t i = 0; i < n; i++){
+        size_t index = conj[i] *(csimbolos + 1) + sym;
+        for(size_t j = 0; j <conteo[index]; j++){
+            size_t d = tabla[index][j];
+            int existe = 0;
+            for(size_t k = 0; k < *ndest; k++)
+            if(dest[k] == d){
+                existe = 1;
+                break;
+            }
+            if(!existe)
+            dest[(*ndest)++] = d;
+        } 
+    }
+}
+
+int SubConjIguales(size_t *a, size_t na, size_t *b, size_t nb){
+    if(na != nb)
+    return 0;
+    for(size_t i = 0; i < na; i++){
+        int enc = 0;
+        for(size_t j = 0; j < nb; j++)
+        if(a[i] == b[j]){
+            enc = 1;
+            break;
+        }
+        if(!enc)
+        return 0;
+    }
+    return 1;
+}
+
+void Subconjuntos(size_t *conj, size_t n){
+    printf("{ ");
+    for(size_t i = 0; i < n; i++)
+        printf("q%zu%s", conj[i], (i < n - 1) ? ", " : "");
+    printf(" }");
+} 
+
+void construccionAFD(void){
+    size_t subconj[MAX_ESTADOS_AFD][MAX_ESTADOS_AFD];
+    size_t tamanios[MAX_ESTADOS_AFD];
+    size_t trans[MAX_ESTADOS_AFD][MAX_ESTADOS_AFD];
+    size_t total_afd = 0;
+
+    for(size_t i = 0; i < MAX_ESTADOS_AFD; i++)
+        tamanios[i] = 0;
+    for(size_t i = 0; i < MAX_ESTADOS_AFD; i++)
+        for(size_t j = 0; j < MAX_ESTADOS_AFD; j++)
+                trans[i][j] = NoHay;
+    
+    subconj[0][0] = 0;
+    tamanios[0] = 1;
+    EClausura(subconj[0], &tamanios[0]);
+    total_afd = 1;
+
+    size_t cola[MAX_ESTADOS_AFD];
+    size_t frente = 0, fin = 0;
+    cola[fin++] = 0;
+    
+    while(frente < fin){
+        size_t actual = cola[frente++];
+
+        for(size_t sym = 0;  sym < csimbolos; sym++){
+            size_t dest[MAX_ESTADOS_AFD];
+            size_t ndest = 0;
+
+            mover(subconj[actual], tamanios[actual], sym, dest, &ndest);
+            if(ndest == 0)
+            continue;
+            EClausura(dest, &ndest);
+
+            int ya_existe = -1;
+            for(size_t i = 0; i < total_afd; i++){
+                if(SubConjIguales(subconj[i], tamanios[i], dest, ndest)){
+                    ya_existe = (int)i;
+                    break;
+                }
+            }
+
+            if(ya_existe == -1){
+                for(size_t i = 0; i < ndest; i++)
+                    subconj[total_afd][i] = dest[i];
+                tamanios[total_afd] = ndest;
+                ya_existe = (int)total_afd;
+                cola[fin++] = total_afd;
+                total_afd++;
+            }
+            trans[actual][sym] = (size_t)ya_existe;
+        }
+    }
+
+    printf("AFD (%zu estados) \n", total_afd);
+    printf(" %-4s  %-30s", "Est.", "Subconjunto AFN");
+    for(size_t sym = 0; sym < csimbolos; sym++)
+        printf(" '%c' ", simbolos[sym]);
+    printf("Final? \n");
+
+    printf(" %-4s %-30s");
+    for(size_t sym = 0; sym < csimbolos; sym++)
+
+    for(size_t i = 0; i < total_afd; i++){
+        int es_final = 0;
+        for(size_t j = 0; j < tamanios[i]; j++)
+            if(edoFinal(subconj[i][j])){
+                es_final = 1;
+                break;
+            }
+        char prefijo[4] = "  ";
+        if(i == 0)
+            prefijo[0] = '>';
+        if(es_final)
+            prefijo[1] = '*';
+
+        printf(" %s%-2zu ", prefijo, i);
+
+        char buf[64] = "  ";
+        int bpos = 0;
+        bpos += sprintf(buf + bpos, "{ ");
+        for(size_t j = 0; j < tamanios[i]; j++)
+            bpos += sprintf(buf + bpos, "q%zu%s", subconj[i][j], (j < tamanios[i] - 1) ? ", " : "");
+        bpos += sprintf(buf + bpos, " }");
+        printf("%s-30s", buf);
+        
+        for(size_t sym = 0; sym < csimbolos; sym++){
+            if(trans[i][sym] == NoHay)
+                printf(" %-5s", "e");
+            else
+                printf(" Q%-4zu", trans[i][sym]);
+        }
+        printf(" %s \n", es_final ? "SI" : "No");
+    }
+
+     printf("\n  Leyenda:  > estado inicial   * estado final\n\n");
+
+    printf("  Transiciones del AFD\n");
+    for (size_t i = 0; i < total_afd; i++) {
+        for (size_t sym = 0; sym < csimbolos; sym++) {
+            if (trans[i][sym] == NoHay) continue;
+            size_t dest_id = trans[i][sym];
+            printf("  Q%zu ", i);
+            Subconjuntos(subconj[i], tamanios[i]);
+            printf("  --%c-->  Q%zu ", simbolos[sym], dest_id);
+            Subconjuntos(subconj[dest_id], tamanios[dest_id]);
+            printf("\n");
+        }
+    }
+    printf("\n");
+}
+
 /*
     Es el main bro que mas quieres saber?
 */
@@ -330,7 +485,18 @@ int main(int argc, char *argv[]){
 
     printf("Alfabeto: \n");
     for(size_t i = 0; i < csimbolos; i++)
-    printf("'%c' \n", simbolos[i]);
+        printf(" '%c'%s ", simbolos[i], (i < csimbolos - 1) ? ", " : "");
+    printf("\n");
+
+    printf("Estados finales AFN: ");
+    for(size_t i = 0; i < cfinales; i++)
+        printf("q%zu%s", finales[i], (i < cfinales - 1) ? ", " : "");
+    printf("\n");
+
+    construccionAFD();
+
+    printf("AFN \n");
+        
 
     int c;
     while((c = getc(stdin)) != EOF){
