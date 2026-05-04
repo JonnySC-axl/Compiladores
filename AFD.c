@@ -420,8 +420,10 @@ void construccionAFD(void){
         printf(" '%c' ", simbolos[sym]);
     printf("Final? \n");
 
-    printf(" %-4s %-30s");
+    printf(" %-4s %-30s", "---", "-----------");
     for(size_t sym = 0; sym < csimbolos; sym++)
+        printf(" ---");
+    printf(" ----- \n");
 
     for(size_t i = 0; i < total_afd; i++){
         int es_final = 0;
@@ -430,7 +432,7 @@ void construccionAFD(void){
                 es_final = 1;
                 break;
             }
-        char prefijo[4] = "  ";
+        char prefijo[4] = "   ";
         if(i == 0)
             prefijo[0] = '>';
         if(es_final)
@@ -438,17 +440,17 @@ void construccionAFD(void){
 
         printf(" %s%-2zu ", prefijo, i);
 
-        char buf[64] = "  ";
+        char buf[64] = "";
         int bpos = 0;
         bpos += sprintf(buf + bpos, "{ ");
         for(size_t j = 0; j < tamanios[i]; j++)
             bpos += sprintf(buf + bpos, "q%zu%s", subconj[i][j], (j < tamanios[i] - 1) ? ", " : "");
         bpos += sprintf(buf + bpos, " }");
-        printf("%s-30s", buf);
+        printf("%-30s", buf);
         
         for(size_t sym = 0; sym < csimbolos; sym++){
             if(trans[i][sym] == NoHay)
-                printf(" %-5s", "e");
+                printf(" %-5s", "'\0'");
             else
                 printf(" Q%-4zu", trans[i][sym]);
         }
