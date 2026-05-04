@@ -361,6 +361,17 @@ void Subconjuntos(size_t *conj, size_t n){
     printf(" }");
 } 
 
+void Estado(size_t indx, char *buf){
+    if(indx < 26){
+        buf[0] = 'A' + indx;
+        buf[1] = '\0';
+    } else {
+        buf[0] = 'A' + (indx / 26) - 1;
+        buf[1] = 'A' + (indx % 26);
+        buf[2] = '\0';
+    }
+}
+
 void construccionAFD(void){
     size_t subconj[MAX_ESTADOS_AFD][MAX_ESTADOS_AFD];
     size_t tamanios[MAX_ESTADOS_AFD];
@@ -414,7 +425,20 @@ void construccionAFD(void){
         }
     }
 
+    char letra[4];
+
+
+
     printf("AFD (%zu estados) \n", total_afd);
+
+    printf("Subconjuntos: \n");
+    for(size_t i = 0; i < total_afd; i++){
+        Estado(i, letra);
+        printf(" %s = ", letra);
+        Subconjuntos(subconj[i], tamanios[i]);
+        printf("\n");
+    }
+
     printf(" %-4s  %-30s", "Est.", "Subconjunto AFN");
     for(size_t sym = 0; sym < csimbolos; sym++)
         printf(" '%c' ", simbolos[sym]);
@@ -438,6 +462,8 @@ void construccionAFD(void){
         if(es_final)
             prefijo[1] = '*';
 
+        Estado(i, letra);
+
         printf(" %s%-2zu ", prefijo, i);
 
         char buf[64] = "";
@@ -451,8 +477,11 @@ void construccionAFD(void){
         for(size_t sym = 0; sym < csimbolos; sym++){
             if(trans[i][sym] == NoHay)
                 printf(" %-5s", "'\0'");
-            else
-                printf(" Q%-4zu", trans[i][sym]);
+            else {
+                char destLetra[4];
+                Estado(trans[i][sym], destLetra);
+                printf(" %-5s", destLetra);
+            }
         }
         printf(" %s \n", es_final ? "SI" : "No");
     }
@@ -464,9 +493,12 @@ void construccionAFD(void){
         for (size_t sym = 0; sym < csimbolos; sym++) {
             if (trans[i][sym] == NoHay) continue;
             size_t dest_id = trans[i][sym];
-            printf("  Q%zu ", i);
+            char letraSrc[4], letraDest[4];
+            Estado(i, letraSrc);
+            Estado(dest_id, letraDest);
+            printf(" %s ", letraSrc);
             Subconjuntos(subconj[i], tamanios[i]);
-            printf("  --%c-->  Q%zu ", simbolos[sym], dest_id);
+            printf(" -- '%c' --> %s", simbolos[sym], letraDest);
             Subconjuntos(subconj[dest_id], tamanios[dest_id]);
             printf("\n");
         }
