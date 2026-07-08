@@ -1,4 +1,4 @@
-%{
+9%{
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -52,3 +52,9 @@ int main(void){
 	printf("Ingresa la expresion a evaluar: \n");
 	return yyparse();
 }
+
+
+//bison -d parser.y
+//flex lexer.l
+//gcc parser.tab.c lex.yy.c -o cal -lfl
+//./cal
